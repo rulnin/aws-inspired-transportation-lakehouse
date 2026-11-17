@@ -491,6 +491,21 @@ Do not assume every negative amount or unusual value is invalid without document
 - [x] Screenshots show actual running services and real pipeline outputs.
 - [x] The README clearly states this is a local AWS-inspired implementation, not an AWS deployment.
 
+### Phase 10 — Final acceptance, CI, and repository closeout
+
+- [x] Reconcile the project-wide Definition of Done against Phase 0–9 evidence; keep unverified items open.
+- [x] Re-run locked setup, lint, format, DAG syntax, and unit tests on the final release commit.
+- [x] Re-run MinIO/Spark/Iceberg/Hive Metastore/Trino/Airflow integration tests and the four-row E2E fixture.
+- [x] Audit the exact release commit for credentials, raw data, generated files, and private machine paths.
+- [ ] Publish the audited `main` branch and `v0.1.0` tag to the existing public repository.
+- [ ] Verify GitHub Actions passes on the published commit and the published tree matches the audited release.
+
+**Acceptance criteria**
+
+- [ ] Every project-wide Definition of Done item is either verified and checked or explicitly documented as unresolved.
+- [ ] The public repository contains the audited source and `v0.1.0` points to the verified release commit.
+- [ ] GitHub Actions reports a successful run for the published release commit.
+
 ## 8. Data quality and metric definitions
 
 Keep business and technical rules explicit.
@@ -538,15 +553,15 @@ Do not present a metric without documenting its grain, filters, null treatment, 
 
 The project is portfolio-ready only when:
 
-- [ ] A clean setup can start required services.
-- [ ] Official source data can be ingested into MinIO Bronze.
-- [ ] Spark creates Silver and Gold Iceberg tables.
-- [ ] Trino queries the Iceberg tables successfully.
-- [ ] Airflow orchestrates the end-to-end flow.
-- [ ] Quality checks and quarantine behavior work.
-- [ ] Reprocessing is idempotent.
-- [ ] Prometheus/Grafana show real operational metrics.
-- [ ] Unit, integration, and end-to-end tests pass.
+- [x] A clean setup can start required services.
+- [x] Official source data can be ingested into MinIO Bronze.
+- [x] Spark creates Silver and Gold Iceberg tables.
+- [x] Trino queries the Iceberg tables successfully.
+- [x] Airflow orchestrates the end-to-end flow.
+- [x] Quality checks and quarantine behavior work.
+- [x] Reprocessing is idempotent.
+- [x] Prometheus/Grafana show real operational metrics.
+- [x] Unit, integration, and end-to-end tests pass.
 - [ ] CI passes.
 - [x] README, diagrams, data dictionary, runbook, and screenshots are complete.
 - [ ] Public repository contains no secrets or raw source data.

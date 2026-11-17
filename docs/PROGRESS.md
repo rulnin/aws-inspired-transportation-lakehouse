@@ -1,6 +1,6 @@
 # Progress
 
-## Current phase: Phase 9 — Documentation and portfolio release
+## Current phase: Phase 10 — Final acceptance, CI, and repository closeout
 
 ### Phase 0 review
 
@@ -299,3 +299,23 @@ Phase 0 acceptance criteria are met based on the documented WSL2/resource inspec
 - README, architecture mapping, data dictionary, quality rules, runbook, sample SQL, real screenshots, limitations, costs, and the local `v0.1.0` tag are complete. Phase 9's acceptance criteria are met.
 - No subsequent phase is started; stop here and await the user's direction.
 - All Compose services are stopped after the final dashboard screenshot; named data volumes remain. `make infra-clean` removes them.
+
+### Phase 10 review before implementation
+
+- Reviewed the Phase 9 checklist and acceptance criteria; they are complete. The local release commit is `9124ce2` with tag `v0.1.0`, and the working tree is clean.
+- The project plan ended at Phase 9, so Phase 10 was defined to close the remaining project-wide Definition of Done: reconcile verified implementation criteria, rerun final checks, audit the release contents, publish to the existing public repository, and verify hosted CI.
+- The public GitHub repository exists but has no remote branches or tags. GitHub CLI authentication is available. The `v0.1.0` tag is local only at the start of this phase.
+
+### Phase 10 local verification
+
+- `uv sync --locked`: passed.
+- `uv run ruff check .`: passed.
+- `uv run ruff format --check .`: passed (40 Python files formatted).
+- `uv run python -m compileall -q airflow/dags`: passed.
+- `uv run pytest`: 32 passed.
+- `bash scripts/phase8_test.sh integration`: 4 passed in 46.52 seconds against freshly started services.
+- `bash scripts/phase8_test.sh e2e`: 1 passed in 43.65 seconds using the four-row fixture; test teardown preserved named data volumes.
+- Compose config validation, shell syntax, Grafana JSON parsing, and `git diff --check`: passed.
+- Reconciled prior phase evidence: all local implementation, observability, and unit/integration/E2E Definition of Done items are verified. Hosted CI and public-repository checks remain open until publication and Actions verification.
+- The audited project tree contains 85 files, no `.env`, Parquet, service logs, or large generated files. Credential-pattern and private-path searches found no embedded secrets or machine paths; matches for `aws_secret_access_key` are environment-variable references in source code.
+- Phase 10 publication and hosted CI remain pending; the remote repository was empty at phase start.
