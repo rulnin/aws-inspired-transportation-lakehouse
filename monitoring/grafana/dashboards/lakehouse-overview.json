@@ -1,0 +1,74 @@
+{
+  "uid": "transportation-lakehouse-overview",
+  "title": "Transportation Lakehouse Overview",
+  "tags": ["lakehouse", "operations"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "refresh": "30s",
+  "time": { "from": "now-6h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Service health (1 = healthy)",
+      "type": "stat",
+      "gridPos": { "h": 6, "w": 24, "x": 0, "y": 0 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "probe_success", "legendFormat": "{{instance}}" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "horizontal", "colorMode": "background", "graphMode": "none", "textMode": "value_and_name" },
+      "fieldConfig": { "defaults": { "min": 0, "max": 1, "thresholds": { "mode": "absolute", "steps": [{ "color": "red", "value": null }, { "color": "green", "value": 1 }] } }, "overrides": [] }
+    },
+    {
+      "id": 2,
+      "title": "Airflow task successes and failures (last hour)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "increase(airflow_ti_successes[1h])", "legendFormat": "successes" },
+        { "refId": "B", "expr": "increase(airflow_ti_failures[1h])", "legendFormat": "failures" }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Airflow DAG run duration (seconds)",
+      "type": "timeseries",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 6 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "airflow_dagrun_duration_success_sum / airflow_dagrun_duration_success_count", "legendFormat": "mean successful run" }]
+    },
+    {
+      "id": 4,
+      "title": "Pipeline rows by source month",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 16, "x": 0, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "lakehouse_silver_input_rows", "legendFormat": "input {{source_month}}" },
+        { "refId": "B", "expr": "lakehouse_silver_valid_rows", "legendFormat": "valid {{source_month}}" },
+        { "refId": "C", "expr": "lakehouse_silver_rejected_rows", "legendFormat": "rejected {{source_month}}" },
+        { "refId": "D", "expr": "lakehouse_gold_output_rows", "legendFormat": "Gold rows {{source_month}}" }
+      ]
+    },
+    {
+      "id": 5,
+      "title": "MinIO bucket storage (bytes)",
+      "type": "timeseries",
+      "gridPos": { "h": 9, "w": 8, "x": 16, "y": 14 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [
+        { "refId": "A", "expr": "minio_cluster_usage_buckets_total_bytes", "legendFormat": "{{bucket}}" }
+      ]
+    },
+    {
+      "id": 6,
+      "title": "Last successful pipeline run",
+      "type": "stat",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 23 },
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "targets": [{ "refId": "A", "expr": "airflow_pipeline_last_success_timestamp_seconds * 1000", "legendFormat": "UTC" }],
+      "options": { "reduceOptions": { "calcs": ["lastNotNull"], "fields": "", "values": false }, "orientation": "horizontal", "colorMode": "none", "graphMode": "none", "textMode": "value" },
+      "fieldConfig": { "defaults": { "unit": "dateTimeAsIso", "decimals": 0 }, "overrides": [] }
+    }
+  ]
+}

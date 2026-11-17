@@ -1,0 +1,43 @@
+[build-system]
+requires = ["hatchling>=1.27,<2"]
+build-backend = "hatchling.build"
+
+[project]
+name = "aws-inspired-transportation-lakehouse"
+version = "0.1.0"
+description = "A local AWS-inspired NYC TLC transportation data lakehouse."
+readme = "README.md"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    "boto3>=1.35,<2",
+    "pyarrow>=18,<25",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.4,<9",
+    "ruff>=0.14,<0.15",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/lakehouse"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests/unit"]
+addopts = "-ra --strict-markers"
+markers = [
+    "integration: requires the local MinIO, Spark, Hive Metastore, Trino, and Airflow Compose stack",
+    "e2e: runs a tiny local fixture through Bronze, Silver, quarantine, Gold, and Trino",
+]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+src = ["src", "tests"]
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "UP", "B"]
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"

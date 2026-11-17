@@ -1,0 +1,412 @@
+name: transportation-lakehouse
+
+services:
+  minio:
+    image: dappros/minio:RELEASE.2025-09-07T16-13-09Z@sha256:624bad2fe79a8613aa3c5c9b765ebcab365080b8445cf1b05c357cc7753725f0
+    command: ["server", "/data", "--console-address", ":9001"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Copy .env.example to .env and set MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Copy .env.example to .env and set MINIO_ROOT_PASSWORD}
+      MINIO_PROMETHEUS_AUTH_TYPE: public
+    ports:
+      - "127.0.0.1:9000:9000"
+      - "127.0.0.1:9001:9001"
+    volumes:
+      - minio-data:/data
+    mem_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:9000/minio/health/live >/dev/null"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    profiles: [core]
+
+  hive-postgres:
+    image: postgres:16-alpine@sha256:81e77a4833487b8132fe4b00bedd39dc3f74b8641e387f19312a48f7de218c2e
+    environment:
+      POSTGRES_DB: metastore_db
+      POSTGRES_USER: ${HIVE_DB_USER:?Set HIVE_DB_USER in .env}
+      POSTGRES_PASSWORD: ${HIVE_DB_PASSWORD:?Set HIVE_DB_PASSWORD in .env}
+    volumes:
+      - hive-postgres-data:/var/lib/postgresql/data
+    mem_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    profiles: [core]
+
+  hive-metastore:
+    build:
+      context: ./docker/hive
+      args:
+        POSTGRES_JDBC_VERSION: 42.7.4
+        POSTGRES_JDBC_SHA256: 188976721ead8e8627eb6d8389d500dccc0c9bebd885268a3047180274a6031e
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      IS_RESUME: "true"
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://hive-postgres:5432/metastore_db
+        -Djavax.jdo.option.ConnectionUserName=${HIVE_DB_USER}
+        -Djavax.jdo.option.ConnectionPassword=${HIVE_DB_PASSWORD}
+        -Dfs.s3a.access.key=${MINIO_ROOT_USER}
+        -Dfs.s3a.secret.key=${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      VERBOSE: "true"
+    depends_on:
+      hive-postgres:
+        condition: service_healthy
+      hive-metastore-init:
+        condition: service_completed_successfully
+    expose:
+      - "9083"
+    mem_limit: 2g
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c 'exec 3<>/dev/tcp/127.0.0.1/9083'"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    profiles: [core]
+
+  hive-metastore-init:
+    build:
+      context: ./docker/hive
+      args:
+        POSTGRES_JDBC_VERSION: 42.7.4
+        POSTGRES_JDBC_SHA256: 188976721ead8e8627eb6d8389d500dccc0c9bebd885268a3047180274a6031e
+    image: transportation-lakehouse-hive-metastore
+    entrypoint: ["/bin/bash", "/opt/lakehouse/init-schema.sh"]
+    environment:
+      SERVICE_NAME: metastore
+      DB_DRIVER: postgres
+      SERVICE_OPTS: >-
+        -Djavax.jdo.option.ConnectionDriverName=org.postgresql.Driver
+        -Djavax.jdo.option.ConnectionURL=jdbc:postgresql://hive-postgres:5432/metastore_db
+        -Djavax.jdo.option.ConnectionUserName=${HIVE_DB_USER}
+        -Djavax.jdo.option.ConnectionPassword=${HIVE_DB_PASSWORD}
+        -Dfs.s3a.access.key=${MINIO_ROOT_USER}
+        -Dfs.s3a.secret.key=${MINIO_ROOT_PASSWORD}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    volumes:
+      - ./docker/hive/init-schema.sh:/opt/lakehouse/init-schema.sh:ro
+    depends_on:
+      hive-postgres:
+        condition: service_healthy
+    mem_limit: 1g
+    restart: "no"
+    profiles: [core]
+
+  trino:
+    image: trinodb/trino:451@sha256:4ebba8c5765fed55b2de64c7f5f018d6447b7eef564d9bd927a837c3842db349
+    ports:
+      - "127.0.0.1:8080:8080"
+    volumes:
+      - ./docker/trino/etc/node.properties:/etc/trino/node.properties:ro
+      - ./docker/trino/etc/config.properties:/etc/trino/config.properties:ro
+      - ./docker/trino/etc/jvm.config:/etc/trino/jvm.config:ro
+      - ./docker/trino/etc/catalog:/etc/trino/catalog:ro
+      - trino-data:/data/trino
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    mem_limit: 2500m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/v1/info >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    profiles: [core]
+
+  spark-ivy-init:
+    image: apache/spark:3.5.3-scala2.12-java17-python3-ubuntu@sha256:a1f2c9dcecb36c0f5c342be340b368883cfaa1d7ab23e6e222c8a93157b73a74
+    user: "0:0"
+    entrypoint: ["/bin/bash", "-lc"]
+    command: ["mkdir -p /tmp/.ivy2 && chown -R 185:185 /tmp/.ivy2"]
+    volumes:
+      - spark-ivy-cache:/tmp/.ivy2
+    restart: "no"
+    profiles: [spark]
+
+  spark:
+    image: apache/spark:3.5.3-scala2.12-java17-python3-ubuntu@sha256:a1f2c9dcecb36c0f5c342be340b368883cfaa1d7ab23e6e222c8a93157b73a74
+    entrypoint: ["/bin/bash", "/opt/lakehouse/entrypoint.sh"]
+    command: ["/workspace/scripts/iceberg_interop_smoke.py"]
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER:?Set MINIO_ROOT_USER in .env}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD:?Set MINIO_ROOT_PASSWORD in .env}
+      LAKEHOUSE_SOURCE_MONTHS: ${LAKEHOUSE_SOURCE_MONTHS:-2024-01,2024-02}
+      LAKEHOUSE_LOG_LEVEL: ${LAKEHOUSE_LOG_LEVEL:-INFO}
+      MINIO_BUCKET: ${MINIO_BUCKET:-lakehouse}
+      LAKEHOUSE_STATSD_HOST: statsd-exporter
+      LAKEHOUSE_STATSD_PORT: "9125"
+      PYTHONPATH: /workspace/src
+    volumes:
+      - ./:/workspace:ro
+      - ./docker/spark/entrypoint.sh:/opt/lakehouse/entrypoint.sh:ro
+      - ./docker/spark/ivysettings.xml:/opt/lakehouse/ivysettings.xml:ro
+      - spark-ivy-cache:/tmp/.ivy2
+    depends_on:
+      hive-metastore:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      spark-ivy-init:
+        condition: service_completed_successfully
+    mem_limit: 3g
+    profiles: [spark]
+
+  airflow-postgres:
+    image: postgres:16-alpine@sha256:81e77a4833487b8132fe4b00bedd39dc3f74b8641e387f19312a48f7de218c2e
+    environment:
+      POSTGRES_DB: airflow_db
+      POSTGRES_USER: ${AIRFLOW_DB_USER:?Set AIRFLOW_DB_USER in .env}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:?Set AIRFLOW_DB_PASSWORD in .env}
+    volumes:
+      - airflow-postgres-data:/var/lib/postgresql/data
+    mem_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$${POSTGRES_USER}\" -d \"$${POSTGRES_DB}\""]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    profiles: [airflow]
+
+  airflow-init:
+    image: transportation-lakehouse-airflow:3.4.0
+    build: ./docker/airflow
+    user: "0:0"
+    command: ["python", "/opt/airflow/scripts/airflow_init.py"]
+    environment: &airflow-environment
+      AIRFLOW__CORE__EXECUTOR: LocalExecutor
+      AIRFLOW__CORE__LOAD_EXAMPLES: "False"
+      AIRFLOW__CORE__PARALLELISM: "1"
+      AIRFLOW__CORE__MAX_ACTIVE_TASKS_PER_DAG: "1"
+      AIRFLOW__METRICS__STATSD_ON: "True"
+      AIRFLOW__METRICS__STATSD_HOST: statsd-exporter
+      AIRFLOW__METRICS__STATSD_PORT: "9125"
+      AIRFLOW__METRICS__STATSD_PREFIX: airflow
+      AIRFLOW__CORE__EXECUTION_API_SERVER_URL: http://airflow-api-server:8080/execution/
+      AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY:?Set AIRFLOW_FERNET_KEY in .env}
+      AIRFLOW__API__SECRET_KEY: ${AIRFLOW_API_SECRET_KEY:?Set AIRFLOW_API_SECRET_KEY in .env}
+      AIRFLOW__API_AUTH__JWT_SECRET: ${AIRFLOW_JWT_SECRET:?Set AIRFLOW_JWT_SECRET in .env}
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER}:${AIRFLOW_DB_PASSWORD}@airflow-postgres:5432/airflow_db
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_USERS: ${AIRFLOW_UI_USERNAME}:admin
+      AIRFLOW__CORE__SIMPLE_AUTH_MANAGER_PASSWORDS_FILE: /opt/airflow/config/simple_auth_manager_passwords.json
+      AIRFLOW_UI_USERNAME: ${AIRFLOW_UI_USERNAME:?Set AIRFLOW_UI_USERNAME in .env}
+      AIRFLOW_UI_PASSWORD: ${AIRFLOW_UI_PASSWORD:?Set AIRFLOW_UI_PASSWORD in .env}
+      LAKEHOUSE_SOURCE_MONTHS: ${LAKEHOUSE_SOURCE_MONTHS:-2024-01,2024-02}
+      LAKEHOUSE_WORKSPACE: ${PWD:?Run Docker Compose from the repository root}
+      LAKEHOUSE_DOCKER_NETWORK: transportation-lakehouse_default
+      LAKEHOUSE_SPARK_IVY_VOLUME: transportation-lakehouse_spark-ivy-cache
+      LAKEHOUSE_SPARK_IMAGE: apache/spark:3.5.3-scala2.12-java17-python3-ubuntu@sha256:a1f2c9dcecb36c0f5c342be340b368883cfaa1d7ab23e6e222c8a93157b73a74
+      MINIO_ENDPOINT_URL: http://minio:9000
+      MINIO_BUCKET: ${MINIO_BUCKET:-lakehouse}
+      TRINO_ENDPOINT_URL: http://trino:8080
+      LAKEHOUSE_LOG_LEVEL: ${LAKEHOUSE_LOG_LEVEL:-INFO}
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+      PYTHONPATH: /opt/airflow/project/src
+    depends_on:
+      airflow-postgres:
+        condition: service_healthy
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./scripts/airflow_init.py:/opt/airflow/scripts/airflow_init.py:ro
+      - ./:/opt/airflow/project:ro
+      - airflow-config:/opt/airflow/config
+      - airflow-logs:/opt/airflow/logs
+    mem_limit: 1g
+    restart: "no"
+    profiles: [airflow]
+
+  airflow-api-server:
+    image: transportation-lakehouse-airflow:3.4.0
+    build: ./docker/airflow
+    command: api-server
+    environment: *airflow-environment
+    ports:
+      - "127.0.0.1:8081:8080"
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./:/opt/airflow/project:ro
+      - airflow-config:/opt/airflow/config
+      - airflow-logs:/opt/airflow/logs
+    mem_limit: 1200m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "curl --fail --silent http://127.0.0.1:8080/api/v2/monitor/health >/dev/null"]
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 60s
+    profiles: [airflow]
+
+  airflow-scheduler:
+    image: transportation-lakehouse-airflow:3.4.0
+    build: ./docker/airflow
+    command: scheduler
+    environment: *airflow-environment
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./:/opt/airflow/project:ro
+      - airflow-config:/opt/airflow/config
+      - airflow-logs:/opt/airflow/logs
+    mem_limit: 1500m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "airflow jobs check --job-type SchedulerJob --hostname \"$${HOSTNAME}\""]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    profiles: [airflow]
+    group_add:
+      - "${DOCKER_SOCKET_GID:-0}"
+
+  airflow-dag-processor:
+    image: transportation-lakehouse-airflow:3.4.0
+    build: ./docker/airflow
+    command: dag-processor
+    environment: *airflow-environment
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - ./:/opt/airflow/project:ro
+      - airflow-config:/opt/airflow/config
+      - airflow-logs:/opt/airflow/logs
+    mem_limit: 512m
+    restart: unless-stopped
+    profiles: [airflow]
+
+  airflow-triggerer:
+    image: transportation-lakehouse-airflow:3.4.0
+    build: ./docker/airflow
+    command: triggerer
+    environment: *airflow-environment
+    depends_on:
+      airflow-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./airflow/dags:/opt/airflow/dags:ro
+      - airflow-config:/opt/airflow/config
+      - airflow-logs:/opt/airflow/logs
+    mem_limit: 512m
+    restart: unless-stopped
+    profiles: [airflow]
+
+  prometheus:
+    image: prom/prometheus:v3.2.1@sha256:6927e0919a144aa7616fd0137d4816816d42f6b816de3af269ab065250859a62
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --storage.tsdb.retention.time=7d
+    ports:
+      - "127.0.0.1:9090:9090"
+    volumes:
+      - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    mem_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/bin/prometheus", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: [monitoring]
+
+  statsd-exporter:
+    image: prom/statsd-exporter:v0.28.0@sha256:4e7a1f00b9b23ef0c5b4fdbb7f4748bdc218cfdff04acc8033bc5b9f7c15009d
+    command:
+      - --web.listen-address=:9102
+      - --statsd.listen-udp=:9125
+    expose:
+      - "9102"
+      - "9125/udp"
+    mem_limit: 128m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/bin/statsd_exporter", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: [airflow, spark, monitoring]
+
+  blackbox-exporter:
+    image: prom/blackbox-exporter:v0.27.0@sha256:a50c4c0eda297baa1678cd4dc4712a67fdea713b832d43ce7fcc5f9bea05094d
+    command:
+      - --config.file=/etc/blackbox_exporter/config.yml
+      - --web.listen-address=:9115
+    expose:
+      - "9115"
+    volumes:
+      - ./infra/blackbox/config.yml:/etc/blackbox_exporter/config.yml:ro
+    mem_limit: 128m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "/bin/blackbox_exporter", "--version"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    profiles: [monitoring]
+
+  grafana:
+    image: grafana/grafana:11.5.2@sha256:8b37a2f028f164ce7b9889e1765b9d6ee23fec80f871d156fbf436d6198d32b7
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:?Set GRAFANA_ADMIN_USER in .env}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:?Set GRAFANA_ADMIN_PASSWORD in .env}
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    ports:
+      - "127.0.0.1:3001:3000"
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./monitoring/grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./monitoring/grafana/dashboards:/var/lib/grafana/dashboards:ro
+    mem_limit: 512m
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --quiet --tries=1 --spider http://127.0.0.1:3000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    profiles: [monitoring]
+
+volumes:
+  minio-data:
+  hive-postgres-data:
+  airflow-postgres-data:
+  trino-data:
+  spark-ivy-cache:
+  airflow-logs:
+  airflow-config:
+  prometheus-data:
+  grafana-data:

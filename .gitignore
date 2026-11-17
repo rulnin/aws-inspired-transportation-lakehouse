@@ -1,0 +1,31 @@
+# Local environment and credentials
+.env
+.env.*
+!.env.example
+
+# Python / uv
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+
+# Local data and service state
+data/
+datasets/
+volumes/
+logs/
+*.parquet
+*.db
+*.sqlite
+
+# Editors and operating systems
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
