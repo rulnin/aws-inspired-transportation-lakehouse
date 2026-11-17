@@ -38,9 +38,13 @@ month can therefore be selected again without multiplying rows.
 
 The stages run in order: retry probe, official source validation, Bronze ingestion, Bronze
 checksum/Parquet verification, Silver processing, Silver/quarantine reconciliation and
-quality checks, Gold processing, and Trino verification. Each task log includes the Airflow
+quality checks, Taxi Zone Lookup reference ingestion, Gold processing, and Trino verification. Each task log includes the Airflow
 run ID and the selected source month(s). Spark task output is streamed into the associated
 Airflow task log.
+
+The reference ingestion task downloads and validates the official Taxi Zone Lookup CSV,
+then uploads `reference/taxi_zone_lookup.csv` to MinIO. An identical checksum skips the
+upload. This restores the reference after a data reset before Gold reads it.
 
 ## Failure handling
 

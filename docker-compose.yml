@@ -29,6 +29,8 @@ services:
       POSTGRES_DB: metastore_db
       POSTGRES_USER: ${HIVE_DB_USER:?Set HIVE_DB_USER in .env}
       POSTGRES_PASSWORD: ${HIVE_DB_PASSWORD:?Set HIVE_DB_PASSWORD in .env}
+    ports:
+      - "127.0.0.1:5433:5432"
     volumes:
       - hive-postgres-data:/var/lib/postgresql/data
     mem_limit: 512m

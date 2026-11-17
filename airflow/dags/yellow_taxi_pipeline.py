@@ -228,6 +228,10 @@ def yellow_taxi_bronze_to_gold():
         _run_script("check_silver_quality.py")
 
     @task(on_failure_callback=_log_task_failure)
+    def ingest_taxi_zones() -> None:
+        _run_script("ingest_taxi_zones.py")
+
+    @task(on_failure_callback=_log_task_failure)
     def verify_gold() -> None:
         _run_script("trino_gold_smoke.py")
         stats.gauge("pipeline.last_success_timestamp_seconds", time.time())
@@ -238,10 +242,11 @@ def yellow_taxi_bronze_to_gold():
     bronze_check = verify_bronze()
     silver = _spark_operator("process_silver", "process_silver.py", "--processing-run-id")
     quality = check_silver_quality()
+    zones = ingest_taxi_zones()
     gold = _spark_operator("process_gold", "process_gold.py", "--pipeline-run-id")
     final_check = verify_gold()
 
-    probe >> sources >> bronze >> bronze_check >> silver >> quality >> gold >> final_check
+    probe >> sources >> bronze >> bronze_check >> silver >> quality >> zones >> gold >> final_check
 
 
 yellow_taxi_bronze_to_gold()

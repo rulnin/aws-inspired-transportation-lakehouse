@@ -1,6 +1,6 @@
 # AWS-Inspired Transportation Data Lakehouse
 
-A reproducible local batch lakehouse for public [NYC TLC Yellow Taxi trip records](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page). It demonstrates immutable Bronze ingestion, quality-checked Silver data with quarantine, reconciled Gold aggregates, orchestration, and operational monitoring using open-source services.
+A reproducible local batch lakehouse for public [NYC TLC Yellow Taxi trip records](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page). It demonstrates checksum-verified Bronze ingestion, quality-checked Silver data with quarantine, reconciled Gold aggregates, orchestration, and operational monitoring using open-source services.
 
 > **Scope:** This is an AWS-inspired local implementation. It does not deploy AWS resources and is not evidence of hands-on AWS service experience.
 
@@ -21,6 +21,27 @@ The full [architecture and data flow](docs/architecture.md) includes the diagram
 | Trino | Athena |
 | Airflow | MWAA |
 | Prometheus + Grafana | CloudWatch-style monitoring |
+
+## Explore the repository
+
+```text
+src/lakehouse/   Reusable Python ingestion, processing, configuration, and logging
+scripts/        Command-line entry points and service verification tools
+airflow/dags/   Pipeline orchestration and infrastructure smoke DAG
+sql/trino/      Example analytics queries
+```
+
+| Directory | Purpose |
+|---|---|
+| `docker/` | Service images, Spark startup, and catalog configuration |
+| `infra/` | Prometheus scrape and blackbox probe configuration |
+| `monitoring/` | Grafana dashboard and datasource provisioning |
+| `tests/` | Unit, integration, and end-to-end tests |
+| `docs/` | Architecture, contracts, operations, and development guides |
+| `.github/` | Continuous integration workflow |
+
+Start with the [developer guide](docs/development.md) for a code-reading path and testing
+instructions, or the [documentation index](docs/README.md) to find a specific topic.
 
 ## Quick start
 
@@ -45,7 +66,7 @@ bash scripts/airflow_smoke.sh
 
 The UI endpoints bind to localhost: Airflow `http://127.0.0.1:8081`, Grafana `http://127.0.0.1:3001`, Trino `http://127.0.0.1:8080`, and MinIO Console `http://127.0.0.1:9001`. Use the credentials in your ignored `.env`. Stop services and preserve data with `make infra-down`; `make infra-clean` also removes named volumes.
 
-For an opt-in isolated test pass, prepare `.env` and run `make integration-test` and `make e2e-test`. The E2E test uses a four-row fixture and does not download the TLC dataset. See the [operations runbook](docs/operations-runbook.md) for manual backfills and recovery.
+For an opt-in service test pass, prepare `.env` and run `make integration-test` and `make e2e-test`. These commands start and stop services in the current Compose project; stop any active demo first. The E2E test uses a four-row fixture and does not download the TLC dataset. See the [operations runbook](docs/operations-runbook.md) for manual backfills and recovery.
 
 ## Results and query demo
 
@@ -85,4 +106,4 @@ These captures are from the local services and lakehouse outputs; they are inclu
 
 ## Project status
 
-Phases 0–10 are complete. The `v0.1.0` release is published in the public repository. See [the project plan](PROJECT_PLAN.md) and [progress log](docs/PROGRESS.md). The official source dataset is attributed to the [NYC Taxi and Limousine Commission](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page); raw Parquet and local service data must not be committed.
+The implemented local pipeline includes Bronze, Silver, Gold, Airflow orchestration, monitoring, and automated checks. The `v0.1.0` release is published in the public repository. Historical plans and validation records are retained in the [build archive](docs/archive/README.md). The official source dataset is attributed to the [NYC Taxi and Limousine Commission](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page); raw Parquet and local service data must not be committed.

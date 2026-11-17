@@ -15,10 +15,10 @@ test:
 	uv run pytest
 
 integration-test:
-	bash scripts/phase8_test.sh integration
+	bash scripts/run_service_tests.sh integration
 
 e2e-test:
-	bash scripts/phase8_test.sh e2e
+	bash scripts/run_service_tests.sh e2e
 
 check: lint test
 

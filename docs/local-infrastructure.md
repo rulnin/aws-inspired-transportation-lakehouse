@@ -2,7 +2,7 @@
 
 ## Profiles and service URLs
 
-All published ports bind to `127.0.0.1`. PostgreSQL and Hive Metastore use only the internal Compose network.
+All published ports bind to `127.0.0.1`. Hive Metastore and Airflow PostgreSQL use the internal Compose network. Hive PostgreSQL is also available at `127.0.0.1:5433` for local inspection. This database stores catalog metadata; query trip data through Trino.
 
 | Profile | Services | Host access |
 |---|---|---|
@@ -17,7 +17,7 @@ All published ports bind to `127.0.0.1`. PostgreSQL and Hive Metastore use only 
 1. Copy `.env.example` to `.env` and replace the local-only passwords and Airflow keys. `.env` is ignored by Git.
 2. Validate Compose expansion with `docker compose config --quiet`.
 3. Start the core profile using `docker compose --profile core up -d --build`.
-4. Run the MinIO object round trip, Spark Iceberg writer, and Trino reader commands listed in the README.
+4. Run `make infra-smoke-minio`, `make infra-smoke-spark`, and `make infra-smoke-trino` in that order.
 5. Stop core services with `docker compose down`. Named volumes persist unless explicitly removed.
 6. Start the observable Airflow stack with `make infra-monitoring-up`. On an approximately 11 GiB host, monitor memory because this runs the complete stack together.
 
@@ -38,7 +38,7 @@ Compose applies conservative per-container memory limits. The core profile shoul
 
 ## Image and compatibility notes
 
-- Spark `3.5.3` uses Java 17 and Scala 2.12, with Iceberg Spark runtime and AWS S3 FileIO artifacts both pinned to `1.6.1`. Phase 4 adds Hadoop S3A `hadoop-aws` `3.3.4`, matching the Spark image's Hadoop client `3.3.4`, for reading Bronze Parquet directly from MinIO.
+- Spark `3.5.3` uses Java 17 and Scala 2.12, with Iceberg Spark runtime and AWS S3 FileIO artifacts both pinned to `1.6.1`. The Spark runtime includes Hadoop S3A `hadoop-aws` `3.3.4`, matching the Spark image's Hadoop client `3.3.4`, for reading Bronze Parquet directly from MinIO.
 - Hive Metastore `3.1.3` uses PostgreSQL 16. The image is built with the PostgreSQL JDBC 42.7.4 driver; the JAR is fetched from Maven Central with a SHA-256 check during the image build.
 - Trino `451` uses the Iceberg connector, Hive Metastore Thrift, and native S3 filesystem settings for the MinIO endpoint.
 - Airflow `3.4.0` uses Python 3.12 and LocalExecutor with its own PostgreSQL database. Its SimpleAuthManager credentials are initialized from ignored `.env` values.

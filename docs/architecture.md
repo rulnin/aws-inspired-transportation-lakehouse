@@ -1,8 +1,8 @@
 # Architecture
 
-## Phase 0 target design
+## Platform design
 
-This is a local, AWS-inspired platform. It does not provision AWS resources. Docker Compose will run the supporting services; Python handles source acquisition and orchestration integration; Spark runs in local mode; Iceberg tables live in MinIO and share a Hive Metastore catalog backed by PostgreSQL. Trino queries the same catalog. Airflow coordinates the work, while Prometheus and Grafana provide operational visibility.
+This is a local, AWS-inspired platform. It does not provision AWS resources. Docker Compose runs the supporting services; Python handles source acquisition and orchestration integration; Spark runs in local mode; Iceberg tables live in MinIO and share a Hive Metastore catalog backed by PostgreSQL. Trino queries the same catalog. Airflow coordinates the work, while Prometheus and Grafana provide operational visibility.
 
 ```mermaid
 flowchart LR
@@ -33,7 +33,7 @@ Bronze stores the source Parquet byte-for-byte with a separate manifest. Spark r
 
 The January and February 2024 source schemas inspected in Phase 0 match exactly. That does not remove the need for optional-column handling across other periods.
 
-## Validated Phase 2 compatibility baseline
+## Validated compatibility baseline
 
 These are the versions used by the local Compose stack. The Spark–Iceberg–Hive Metastore–MinIO–Trino path passed a write/read interoperability smoke test; this is a local development result, not a production compatibility guarantee.
 

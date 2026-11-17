@@ -3,11 +3,11 @@ set -euo pipefail
 
 scope="${1:-}"
 if [[ "$scope" != integration && "$scope" != e2e ]]; then
-  echo "Usage: bash scripts/phase8_test.sh <integration|e2e>" >&2
+  echo "Usage: bash scripts/run_service_tests.sh <integration|e2e>" >&2
   exit 2
 fi
 if [[ ! -f .env ]]; then
-  echo "Copy .env.example to .env before running Phase 8 service tests" >&2
+  echo "Copy .env.example to .env before running service tests" >&2
   exit 2
 fi
 
