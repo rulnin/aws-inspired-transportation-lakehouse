@@ -316,6 +316,12 @@ Phase 0 acceptance criteria are met based on the documented WSL2/resource inspec
 - `bash scripts/phase8_test.sh integration`: 4 passed in 46.52 seconds against freshly started services.
 - `bash scripts/phase8_test.sh e2e`: 1 passed in 43.65 seconds using the four-row fixture; test teardown preserved named data volumes.
 - Compose config validation, shell syntax, Grafana JSON parsing, and `git diff --check`: passed.
-- Reconciled prior phase evidence: all local implementation, observability, and unit/integration/E2E Definition of Done items are verified. Hosted CI and public-repository checks remain open until publication and Actions verification.
+- Reconciled prior phase evidence: all implementation, observability, and unit/integration/E2E Definition of Done items are verified.
 - The audited project tree contains 85 files, no `.env`, Parquet, service logs, or large generated files. Credential-pattern and private-path searches found no embedded secrets or machine paths; matches for `aws_secret_access_key` are environment-variable references in source code.
-- Phase 10 publication and hosted CI remain pending; the remote repository was empty at phase start.
+- Published commit `5b9b1a8` to `main` and moved/published the local `v0.1.0` tag to that verified release commit. The remote refs match the audited tree.
+- GitHub Actions passed both push-triggered runs for commit `5b9b1a8`: [main CI](https://github.com/rulnin/aws-inspired-transportation-lakehouse/actions/runs/44016766592) and [v0.1.0 CI](https://github.com/rulnin/aws-inspired-transportation-lakehouse/actions/runs/44016767353). Setup, lint, format, DAG syntax, and unit tests passed.
+
+### Phase 10 completed
+
+- All project-wide Definition of Done items are verified and checked. The public repository contains the audited project, and `v0.1.0` points to the verified release commit.
+- All Phase 10 checklist items and acceptance criteria are complete. No subsequent phase is defined or started; stop for user review.

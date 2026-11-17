@@ -497,14 +497,14 @@ Do not assume every negative amount or unusual value is invalid without document
 - [x] Re-run locked setup, lint, format, DAG syntax, and unit tests on the final release commit.
 - [x] Re-run MinIO/Spark/Iceberg/Hive Metastore/Trino/Airflow integration tests and the four-row E2E fixture.
 - [x] Audit the exact release commit for credentials, raw data, generated files, and private machine paths.
-- [ ] Publish the audited `main` branch and `v0.1.0` tag to the existing public repository.
-- [ ] Verify GitHub Actions passes on the published commit and the published tree matches the audited release.
+- [x] Publish the audited `main` branch and `v0.1.0` tag to the existing public repository.
+- [x] Verify GitHub Actions passes on the published commit and the published tree matches the audited release.
 
 **Acceptance criteria**
 
-- [ ] Every project-wide Definition of Done item is either verified and checked or explicitly documented as unresolved.
-- [ ] The public repository contains the audited source and `v0.1.0` points to the verified release commit.
-- [ ] GitHub Actions reports a successful run for the published release commit.
+- [x] Every project-wide Definition of Done item is either verified and checked or explicitly documented as unresolved.
+- [x] The public repository contains the audited source and `v0.1.0` points to the verified release commit.
+- [x] GitHub Actions reports a successful run for the published release commit.
 
 ## 8. Data quality and metric definitions
 
@@ -562,9 +562,9 @@ The project is portfolio-ready only when:
 - [x] Reprocessing is idempotent.
 - [x] Prometheus/Grafana show real operational metrics.
 - [x] Unit, integration, and end-to-end tests pass.
-- [ ] CI passes.
+- [x] CI passes.
 - [x] README, diagrams, data dictionary, runbook, and screenshots are complete.
-- [ ] Public repository contains no secrets or raw source data.
+- [x] Public repository contains no secrets or raw source data.
 - [x] AWS-equivalent claims are accurately qualified as local/open-source equivalents.
 
 ## 11. Useful official references

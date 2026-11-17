@@ -85,4 +85,4 @@ These captures are from the local services and lakehouse outputs; they are inclu
 
 ## Project status
 
-Phases 0–9 are complete. The local `v0.1.0` release tag is not pushed to the remote. See [the project plan](PROJECT_PLAN.md) and [progress log](docs/PROGRESS.md). The official source dataset is attributed to the [NYC Taxi and Limousine Commission](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page); raw Parquet and local service data must not be committed.
+Phases 0–10 are complete. The `v0.1.0` release is published in the public repository. See [the project plan](PROJECT_PLAN.md) and [progress log](docs/PROGRESS.md). The official source dataset is attributed to the [NYC Taxi and Limousine Commission](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page); raw Parquet and local service data must not be committed.
